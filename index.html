@@ -1,0 +1,2976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HTML5 File Drag &amp; Drop API</title>
+<link href="css/bootstrap.min.css" rel="stylesheet">
+
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="jquery.csv-0.6.js"></script>
+<script src="d3.v2.min.js"></script>
+
+<style type="text/css">
+    .datalinks {padding-right: 1em;}
+    #consoleInput {width: 95%; padding: .5em 1em .5em; margin: 0em;}
+    #consoleForm { margin: 0em; padding: 0em;}
+	#page {margin-top: 6em;}
+	.hidden {display: none}
+	.show {display: inline}
+    li {list-style-type: none; padding: .2em; }
+     #resultsHistories {padding: 0px; margin: 0px;}
+     .success-alert {background: #ffff30; }
+	.section_header 
+    {
+        margin: 0px;
+        padding: 0px;
+        padding-top: 2em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid #ccc;
+        text-transform: none;
+        font-size: 1em;
+    }
+    .newhighlight {background: yellow; margin-left: 1em;}
+    .error-alert { background: #ffe4e1; border: 1px solid red; margin-bottom: .5em;}
+    .descriptor {padding-bottom: .5em; }
+    
+    .input-statement { padding-bottom: .5em;  }
+    .input-statement:first-child span {background: yellow; font-weight: bold; padding: .2em .3em; margin: 0em;  }
+
+    .result-table, .graph-box { margin: 0em 0em 3em; padding: 0em; }
+    .graph-box { padding: 1em 1em 1em; border: 3px solid #eef;}
+
+    .top-row, .input-box, .output-box {padding: .2em 0em; margin: 0em;  border: 1px solid #ccc; background: #eef; }
+    .main-row {padding: 0em; margin: 0em; border-left: 1px solid #ccc; border-right: 1px solid #ccc; }
+    .output-box { border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
+    .first-data {padding: .4em 0em 0em; border-left: 1px solid #ccc; border-right: 1px solid #ccc; margin: 0em;  }
+    .last-data {padding: 0em 0em .4em; border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; margin: 0em; }
+
+    .result-row { padding: 0em; margin-left: 0em; text-align: center;}
+    .output-box, .input-box {  }
+    .output-box { background: #fff; border-left: none;}
+    /*
+    table {border: none; border-top: 1px solid #000; margin: 1em 0 0;}
+    td {border: none; margin: 0em; padding: 0em;}
+    .table-top { background: #f4f4f4; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 0px; margin: 1em 0 0; }
+    .table-top td { padding: .5em 1em; margin: 0px; }
+    ul { padding-left: 0; margin-left: 0;}
+    table { margin-bottom: 2em; }
+    */
+/* D3 styles */
+.axis path, .axis line {
+  fill: none;
+  stroke: #aaa;
+  shape-rendering: crispEdges;
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1px;
+}
+
+.dot {
+  fill: white;
+  stroke: steelblue;
+  stroke-width: 1px;
+}
+</style>
+</head>
+<body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">JREGS</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+                <li class="active"><a href="#">Home</a></li>
+                <li id="datauploadlink"><a href="javascript:;">Upload</a></li>
+                <li id=""><a id="demoRun" href="javascript:;" >Demo</a></li>
+
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+<div id="page" class="container">
+
+<div class="row">
+<div id="dataupload" class="hidden span12">
+    <form id="upload" action="upload.php" method="POST" enctype="multipart/form-data">
+    <fieldset>
+    <div class="section_header">Upload Files</div>
+    <div>
+        <input type="file" id="fileselect" name="fileselect[]" multiple="multiple" />
+    </div>
+    </fieldset>
+    </form>
+</div>
+</div>
+
+<div class="row">
+<div class="span9">
+    <form id="consoleForm" action="javascript:;" onsubmit="javascript:process();">
+    <fieldset>
+    <div class="section_header">Console</div>
+    <div>
+	   <input type="text" id="consoleInput" size="400" name="consoleInput" value="" />
+    </div>
+    </fieldset>
+    </form>
+</div>
+
+<div id="dataStore" class="hidden span3">
+    <div class="section_header">Data</div>
+    <div id="dataStores" class="">
+    </div>
+</div>
+
+
+
+</div>
+
+<div class="row">
+
+<!--
+<div id="statementHistory" class="hidden span9">
+    <div id="statementHeader" class="section_header">Command  (<a href="javascript:;" id="showCommandsLink" >Show All</a>)</div>
+    <div id="">
+        <ul id="statementHistories">
+
+        </ul>
+    </div>
+</div> -->
+
+
+
+<div id="resultsHistory" class="hidden span9">
+    <div class="section_header">Result</div>
+    <div id="">
+        <ul id="resultsHistories">
+
+        </ul>
+    </div>
+</div>
+
+
+
+
+
+</div><!-- closes row -->
+
+
+<div id="jregs_debugger" class="hidden">
+    <div class="section_header">Debugger</div>
+</div>
+
+<br/>
+
+
+</div><!-- ends id="page" -->
+
+<script src="js/bootstrap.min.js"></script>
+
+<script type="text/javascript">
+
+(function() {
+
+    $( 'a[rel=popover]' ).popover({
+            html: true,
+            trigger: 'hover'
+        });
+
+    $( "#demoRun" ).click(function(){
+        Run_Demo();
+    });
+    $( "#datauploadlink" ).click(function(){
+        Show_Upload();
+    });
+    $( "#showCommandsLink" ).click(function(){
+        Show_Command_History();
+    });
+
+    function Show_Upload()
+    {
+        $( "#dataupload" ).show();        
+    }
+
+
+    function Show_Command_History()
+    {
+        $( "#statementHistories" ).css( { "max-height": "none" } );
+        $( "#statementHeader" ).html( "Command  (<a href=\"javascript:;\" id=\"hideCommandsLink\" >Show Last</a>)" );
+        $( "#hideCommandsLink" ).click(function(){
+            Hide_Command_History();
+        });
+        return;
+    }
+
+    function Hide_Command_History()
+    {
+        $( "#statementHistories" ).css( { "max-height": "2em" } );
+        $( "#statementHeader" ).html( "Command  (<a href=\"javascript:;\" id=\"showCommandsLink\" >Show All</a>)" );
+        $( "#showCommandsLink" ).click(function(){
+            Show_Command_History();
+        });
+    }
+
+
+
+    Set_Focus();
+
+    window.internal_object_names=[];
+    window.internal_object_values=[];
+    window.internal_object_declared=[];
+    window.internal_object_labels=[];
+
+    window.internal_object_names.push( 'e' );
+    window.internal_object_values.push( 2.71828182845904523536028747135266249775724709369995 );
+    window.internal_object_declared.push( false );
+    window.internal_object_labels.push( 'e' );
+
+    window.input_statement_history = [];
+    var reader = new FileReader();
+    window.jregs_debugger = true;
+    window.history_string = '';
+
+    
+    //
+    //  DATA UPLOADER
+    //
+
+    reader.onloadend = function(e, filename) 
+    {    
+
+        var data = $.csv2Array(e.target.result);
+    
+        if( data )
+        {
+
+            for (var i=0; i < data[0].length; i++)
+            {
+                // if the column/vector has no variable name, give it one
+                var _name = ( data[0][i] == '' ) ? 'var ' + i : data[0][i]
+
+                var _var = [];
+
+
+                // note: we're assuming first row is named or blank
+                for( var j=1; j < data.length; j++ )
+                {
+                    if( isNumber( data[j][i] ) ) 
+                    { 
+                        _var.push( parseFloat( data[j][i] ) ); 
+                    }
+                    else { Message_error( 'Cannot read non-numeric values into data. In the dataset being upload, this is <strong>column ' + i + '</strong> and <strong>row '+ j +'</strong>. The value is: ' + data[j][i] + '.'  ); }
+                }
+
+                object_mapper( _name, _var, true, _name );
+            }
+            Message_success( 'File uploaded successfully.' );
+        }
+        else
+        {
+            Message_success( 'File did not upload successfully.' );
+        }
+
+        $( '#dataupload' ).hide();        
+        Set_Focus();
+
+    };
+
+
+    var uploader = document.getElementById("fileselect");  
+    uploader.addEventListener("change", handleFiles, false);  
+  
+    function handleFiles() 
+    {    
+        var file = this.files[0];
+        var filename = this.files[0].name;        
+        $( '#statementHistories' ).prepend( '<li>Upload ' + filename + '.</li>' );
+        $( '#statementHistory' ).show();
+        reader.readAsText(file);
+    };
+})();
+
+
+var equals_marker = '###';
+var plus_marker = '#!!';
+var minus_marker = '#@@';
+var multiply_marker = '#%%';
+var divide_marker = '##!';
+var open_marker = '##&';
+var close_marker = '##~';
+var comma_marker = "#~~"
+
+
+
+
+
+function process(){
+    
+	var input_statement = document.getElementById("consoleInput").value;
+    var total_statements = 1;
+    var input_contains_multiple_statements = false;
+    var all_statements = [];
+
+    if( input_statement.search( '\;' ) > -1 ) 
+    {
+        input_contains_multiple_statements = true;
+    }
+
+    if( input_contains_multiple_statements )
+    {
+        total_statements += input_statement.match( /\;/g ).length;
+        all_statements = input_statement.split( '\;' );
+    }
+    else
+    {
+        all_statements[0] = input_statement;
+    }
+
+    for( var i=0; i<total_statements; i++ )
+    {
+        Input_Statement_Process( $.trim( all_statements[i] ) );
+    }
+
+    Set_Focus();
+
+    return false;
+}
+
+function Set_Focus()
+{
+    $('#consoleInput').val('');
+    $('#consoleInput').focus();
+}
+
+function Run_Demo()
+{
+    Input_Statement_Process( 'x1=rnorm(100,1,3)' );
+    Input_Statement_Process( 'x2=rnorm(100,10,3)' );
+    Input_Statement_Process( 'y=5*x1+rnorm(100,0,10)' );
+    Input_Statement_Process( 'graph reg y x1' );
+    Input_Statement_Process( 'y=5*x1-2*x2+rnorm(100,0,10)')
+    Input_Statement_Process( 'reg y x1 x2')
+    Set_Focus();
+
+    return false;
+}
+
+
+
+
+function Input_Statement_Process( input_statement )
+{
+    window.input_statement_history.push( input_statement );
+
+                        // DEBUGGER
+                        if(window.jregs_debugger == true)
+                        {
+                            var message = "<p>Starting process ... </p>";
+                            $('#jregs_debugger').append(message);
+                            $('#jregs_debugger').show();
+                        }
+
+
+    if( input_statement.search( 'reg ' ) > -1 )
+    {
+        var is_graph;
+
+        if( input_statement.search('graph ') > -1 )
+        {
+            is_graph = true;
+            input_statement = input_statement.replace( /graph /g , '' );
+        }
+
+        input_statement = input_statement.split( ' ' );
+     
+
+        var vectors = [];
+        var create_intercept = true;
+
+        for( i=2; i<input_statement.length; i++ )
+        {
+
+            var obj_ind_pos = $.inArray( input_statement[ i ], window.internal_object_names );
+            if(  obj_ind_pos > -1 )
+            {
+                vectors.push( obj_ind_pos );
+            }
+            else
+            {
+                Message_error( 'Vector "' + input_statement[i] + '" is not in memory.' );
+                return false;
+            }
+        }
+
+        var dv_ind_pos;
+        if( $.inArray( input_statement[ 1 ], window.internal_object_names ) > -1 )
+        {
+            dv_ind_pos = $.inArray( input_statement[ 1 ], window.internal_object_names );
+        }
+        else
+        {
+            Message_error( 'Dependent variable, "' + input_statement[ 1 ] + '," is not a recognized object.' );
+            return false;
+        }
+
+        var Xis_Matrix = Jregs_create_matrix( vectors, create_intercept );
+        var Xis_square_inv = inv( getDotProduct( transpose( Xis_Matrix ), Xis_Matrix ) );
+        var Betas = getDotProduct( getDotProduct( Xis_square_inv, transpose( Xis_Matrix ) ), window.internal_object_values[ dv_ind_pos ] );
+
+        window.model = [];
+        window.model.yhats  = createYhats( Betas, Xis_Matrix );
+        window.model.resids = createResiduals(window.model.yhats, window.internal_object_values[ dv_ind_pos ] );
+        window.model.TSS = getTSS( window.internal_object_values[ dv_ind_pos ] );
+        window.model.RSS = getRSS(window.model.resids);
+        window.model.RSQD = getRSQD(window.model.RSS,window.model.TSS);
+        window.model.MSE = getMSE(window.model.RSS, window.internal_object_values[ dv_ind_pos ].length, Betas.length-1); //RSS,n,p
+        window.model.SER = getSER(window.model.RSS, window.internal_object_values[ dv_ind_pos ].length, Betas.length-1); //RSS,n,p
+        window.model.stderrs = getSEs( window.model.MSE, Xis_square_inv );
+        window.model.tstats = getTstats( Betas, window.model.stderrs );
+
+        var df = window.internal_object_values[ vectors[ 0 ] ].length - vectors.length - 1;
+        window.model.pvals = jregs_convert_tstat_to_pvals( df, window.model.tstats );
+
+        var results = [];
+        var firstRow = [];
+        firstRow.push('');
+        firstRow.push( 'Estimate' );
+        firstRow.push( 'Std. Err.' );
+        firstRow.push( 't-stat.' );
+        firstRow.push( 'p-value' );
+
+        results.push( firstRow );
+        for(i=0;i<Betas.length;i++)
+        {
+            var newRow = [];
+            if(i==0)
+            {
+                newRow.push('Intercept ');
+            }
+            else
+            {
+                newRow.push( window.internal_object_names[ vectors[ i-1 ] ] );
+            }
+            newRow.push(Betas[i]);
+            newRow.push( window.model.stderrs[ i ] );
+            newRow.push( window.model.tstats[ i ] );
+            newRow.push( window.model.pvals[ i ]);
+            results.push(newRow);
+        }
+
+        if( !is_graph )
+        {
+            Message_success( jregs_html_regression_result_tables( results, dv_ind_pos ), 'Results', true );
+        
+            $( 'a[rel=popover]' ).popover({
+                  html: true,
+                  trigger: 'hover'
+            });
+        }
+        else
+        {
+
+            $('#resultsHistories').prepend("<div id='grapher'></div>");
+
+   
+            var min_x = Math.min.apply(null, window.internal_object_values[ $.inArray( input_statement[ 2 ], window.internal_object_names ) ])
+            var max_x = Math.max.apply(null, window.internal_object_values[ $.inArray( input_statement[ 2 ], window.internal_object_names ) ])
+
+            var min_y = Math.min.apply(null, window.internal_object_values[ dv_ind_pos ])
+            var max_y = Math.max.apply(null, window.internal_object_values[ dv_ind_pos ])
+
+            //alert( 'max x: ' + max_x + '\r min x: ' + min_x + '\r max y: ' + max_y + '\r min y: ' + min_y );
+
+            var beta_0 = Betas[0];
+            var beta_1 = Betas[1];
+        var dataset=[];
+         for(var z = 0; z<100; z++ )
+        {
+            var data_point = [];
+            data_point.push( window.internal_object_values[ $.inArray( input_statement[ 2 ], window.internal_object_names ) ][ z ] );
+            data_point.push( window.internal_object_values[ dv_ind_pos ][ z ] );
+            dataset.push(data_point);
+        }
+
+        var total_min_x, total_max_x, total_min_y, total_max_y;
+
+var min_y_hat = parseFloat(beta_0)+(parseFloat(beta_1)*min_x);
+var max_y_hat = parseFloat(beta_0)+(parseFloat(beta_1)*max_x);
+
+        function return_maxes(a,b) { if (a > b) { return a } else { return b; } }
+        function return_mins(a,b) { if (a < b) { return a } else { return b; } }
+        total_min_y = return_mins( min_y, min_y_hat );
+        total_max_y = return_maxes( max_y, max_y_hat );
+       
+
+
+            var margin = {top: 10, right: 30, bottom: 20, left: 30},
+                width = 400 - margin.left - margin.right,
+                height = 280 - margin.top - margin.bottom;
+
+            var x = d3.scale.linear()
+                .domain([min_x-Math.abs(.1*min_x), max_x+Math.abs(.1*max_x)])
+                .range([0, width]);
+
+            var y = d3.scale.linear()
+                .domain([total_min_y-Math.abs(.1*total_min_y), total_max_y+Math.abs(.1*total_max_y)])
+                .range([height, 0]);
+
+            var xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom");
+
+            var yAxis = d3.svg.axis()
+                .scale(y)
+                .orient("left");
+
+            var svg = d3.select("#grapher").append("svg")
+                .attr("class", "graph-box")
+                .datum(dataset)
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+              .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+
+svg.append("svg:line")
+    .attr("x1", x(min_x))
+    .attr("y1", y(min_y_hat))
+    .attr("x2", x(max_x))
+    .attr("y2", y(max_y_hat))
+    .style("stroke", "rgb(6,120,155)");
+
+svg.selectAll("circle")
+      .data(dataset)
+    .enter().append("circle")
+      .attr("class", "dot")
+      .attr("r", 3.5)
+      .attr("cx", function(d) { return x(d[0]); })
+      .attr("cy", function(d) { return y(d[1]); })
+   .attr("fill", "red");
+
+        //$("#grapher").prepend('<div class="top-row">Regression Results</div>');
+
+            jregs_print_input_statements();
+
+        }
+
+        return;
+
+        function Jregs_create_matrix( vectors, create_intercept )
+        {
+
+            // Make sure they're all the same length
+            for( var j=1; j< vectors.length; j++ )
+            {
+                if( window.internal_object_values[ vectors[0] ].length != window.internal_object_values[ vectors[j] ].length )
+                {
+                    Message_error( 'Vector "' + window.internal_object_names[ vectors[j] ] + '" is not the same length as vector "' + window.internal_object_names[ vectors[0] ] + '".');
+                    return false;
+                }
+            }
+
+            var this_matrix = [ window.internal_object_values[ vectors[ 0 ] ].length ];
+
+            for( j=0; j < window.internal_object_values[ vectors[ 0 ] ].length; j++ )
+            {
+                var new_row = [];
+                if( create_intercept )
+                {
+                    new_row.push( 1 );
+                }
+                for( k=0; k < vectors.length; k++ )
+                {
+                    new_row.push( window.internal_object_values[ vectors[ k ] ][ j ] );
+                }
+                this_matrix[ j ] = new_row;
+            }
+            return this_matrix;
+        }
+
+        function jregs_convert_tstat_to_pvals( df, tvals )
+        {
+            var pvals = [];
+            for(i=0;i<tvals.length;i++)
+            {
+                pvals.push( calcpva( df, tvals[i] ) );
+            }
+            return pvals;
+
+            function checnum(as)
+            {
+                var a = as.value;
+                
+                for(var x=0; x<a.length; x++)
+                {
+                    var ff = a[x];
+                   if(isNaN(a) && ff!="." && ff!="-")
+                   {
+                      a = a.substring(0,(a.length-1));
+                      as.value = a;
+                   }    
+                } 
+            }
+
+            function TtoP(t, df) 
+            {
+                with (Math) 
+                {
+                    var abst = abs(t), tsq = t*t, p;
+                    if(df == 1) 
+                    {
+                        p = 1 - 2*atan(abst)/PI;
+                    }
+                    else if (df == 2) 
+                    {
+                        p = 1 - abst/sqrt(tsq + 2);
+                    }
+                    else if (df == 3) 
+                    {
+                        p = 1 - 2*(atan(abst/sqrt(3)) + abst*sqrt(3)/(tsq + 3))/PI;
+                    }
+                    else if (df == 4) 
+                    {
+                        p = 1 - abst*(1 + 2/(tsq + 4))/sqrt(tsq + 4);
+                    }
+                    else 
+                    {
+                        var z = TtoZ(abst, df);
+                        if (df>4)
+                        {
+                            p = Norm_p(z);
+                        }
+                        else 
+                        {
+                            p = Norm_p(z); 
+                        }
+                    }
+                }
+                return p;
+            }
+
+            function TtoZ(t, df) 
+            {
+                var A9 = df - 0.5;
+                var B9 = 48*A9*A9;
+                var T9 = t*t/df, Z8, P7, B7, z;
+                with (Math) 
+                {
+                    if (T9 >= 0.04) 
+                    {
+                        Z8 = A9*log(1+T9);
+                    }
+                    else
+                    {
+                        Z8 = A9*(((1 - T9*0.75)*T9/3 - 0.5)*T9 + 1)*T9;
+                    }
+                    P7 = ((0.4*Z8 + 3.3)*Z8 + 24)*Z8 + 85.5;
+                    B7 = 0.8*pow(Z8, 2) + 100 + B9;
+                    z = (1 + (-P7/B7 + Z8 + 3)/B9)*sqrt(Z8);
+                    return z;
+                }
+            }
+
+            function Norm_p(z) 
+            {
+                var absz = Math.abs(z);
+                var a1 = 0.0000053830;
+                var a2 = 0.0000488906;
+                var a3 = 0.0000380036;
+                var a4 = 0.0032776263;
+                var a5 = 0.0211410061;
+                var a6 = 0.0498673470;
+                var p = (((((a1*absz+a2)*absz+a3)*absz+a4)*absz+a5)*absz+a6)*absz+1;
+                p = Math.pow(p, -16);
+                return p;
+            }
+
+            function calcpva(df, tval)
+            {
+                var ttp = TtoP(tval,df);
+                //document.getElementById("ttp").value = ttp.toFixed(6);
+                return ttp;
+                //var otp = ttp / 2;
+                //document.getElementById("otp").value = otp.toFixed(6);
+            }
+        }
+
+    }
+
+
+
+
+
+    // STRIP WHITESPACE
+    input_statement = input_statement.replace( / /g , '' );
+
+
+    //
+    // 1. ADD IMPLICIT PARENTHESES 
+    //
+
+    input_statement = enclose_multiply_markers( input_statement );
+    if( !input_statement )
+    {
+        return false;
+    }
+
+    // 1a. STORE FINAL VERSION OF INPUT STATEMENT
+
+    window.input_statement_history[ window.input_statement_history.length - 1 ] = input_statement;
+
+
+
+    //
+    // 2. EVALUATE EACH PARENTHESIS IN TURN
+    //
+
+    var parenth_count = 0;
+
+    if( input_statement.search( /\(/ ) > -1 ) // .length returns error unless match returns values
+    {
+        parenth_count = input_statement.match( /\(/g ).length;
+        //alert( 'parenth_count: ' + parenth_count + ' // input_statement: ' + input_statement );
+    }			
+                                // DEBUGGER
+                                if(window.jregs_debugger == true)
+                                {
+                                    // var message = "<h4>Explanation</h5><p>Since this is an ASSIGNMENT, we're going to cycle through the right-hand side of the input statement until we resolve it, and then assign that value to the object on the left-hand side of the input_statement. If there are any parentheses, we cycle through them first, starting with the open parenthesis closest to the end. We resolve the value of each parenthesis the same way we resolve an assignment that has no parentheses: we move element by element from left to right.</p>";
+                                   // $('#jregs_debugger').append(message);
+                                    //$('#jregs_debugger').append("<h4>Now we\'re going to cycle through the input_statement:</h4><ul>");
+                                }  // the "<ul>" is closed in function object_mapper()
+
+	for(var i = 0; i < parenth_count+1; i++) // add the plus + 1 to continue loop when there are no parentheses
+	{
+                                // DEBUGGER
+                                if(window.jregs_debugger == true)
+                                {
+                                    var message = "<li><em>Iteration " + (i+1) + "</em>. The input statement is now: <strong>" + input_statement + "</strong>.</li>";
+                                    $('#jregs_debugger').append(message);
+                                }    
+
+        input_statement = statement_evaluator( insert_markers ( input_statement ) );    
+
+        // stop running if there is an error, which returns false, or input_statement is completed early
+        if( !input_statement )  break; 
+	}
+
+    return;
+}
+
+
+function jregs_html_regression_result_tables( results, dv_ind_pos )
+{
+        var html_string = '<div class="row result-table">';
+
+        for( var j=0; j < results.length; j++ )
+        {
+            if( j==0 ) html_string = html_string + '<div class="span9 top-row">';
+            else if( j== 1 ) html_string = html_string + '<div class="span9 first-data">';
+            else if( j== results.length-1 ) html_string = html_string + '<div class="span9 last-data">';
+            else html_string = html_string + '<div class="span9 main-row">';
+            for( k=0; k < results[j].length; k++ )
+            {
+                var cell_value = results[j][k];
+                if( k > 0 && j > 0 )
+                {
+                    var cell_value  =   jregs_round( results[j][k], 4 ).toFixed( 4 );
+                    var gradation, data_content, abs_cell_value;
+                    abs_cell_value = cell_value;
+                    // k is value of column
+                    // j is value of row
+                    if( k == 1 )
+                    {
+                        if( j > 1 )
+                        {
+                            if( cell_value < 0 )
+                            {
+                                gradation = 'a decrease';
+                                abs_cell_value = Math.abs( cell_value );
+                            }
+                            else
+                            {
+                                gradation = 'an increase';
+                            }
+
+                            var regressor_list = '';
+                            if( results.length < 5 )
+                            {
+                                if( j == 2 )
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong>';
+                                }
+                                else
+                                {
+                                    regressor_list = '<em><strong>' + results[1][0] + '</em></strong>';
+                                }
+                            }
+                            else if( results.length < 6 )
+                            {
+                                if( j == 2 )
+                                {
+                                    regressor_list = '<em><strong>' + results[3][0] + '</em></strong> and <em><strong>' + results[4][0] + '</em></strong>';
+                                }
+                                else if ( j == 3 )
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong> and <em><strong>' + results[4][0] + '</em></strong>';
+                                }
+                                else
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong> and <em><strong>' + results[3][0] + '</em></strong>';                                    
+                                }
+                            }
+                            else if( results.length < 7 )
+                            {
+                                if( j == 2 )
+                                {
+                                    regressor_list = '<em><strong>' + results[3][0] + '</em></strong>, <em><strong>' + results[4][0] + '</em></strong> and <em><strong>' + results[5][0] + '</em></strong>';
+                                }
+                                else if ( j == 3 )
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong>, <em><strong>' + results[4][0] + '</em></strong> and <em><strong>' + results[5][0] + '</em></strong>';
+                                }
+                                else if ( j == 4 )
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong>, <em><strong>' + results[3][0] + '</em></strong> and <em><strong>' + results[5][0] + '</em></strong>';
+                                }
+                                else 
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong>, <em><strong>' + results[3][0] + '</em></strong> and <em><strong>' + results[4][0] + '</em></strong>';
+                                }
+                            }
+                            else
+                            {
+                                if( j == 2 )
+                                {
+                                    regressor_list = '<em><strong>' + results[3][0] + '</em></strong>, <em><strong>' + results[4][0] + '</em></strong>';
+                                }
+                                else if ( j == 3 )
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong>, <em><strong>' + results[4][0] + '</em></strong>';
+                                }
+                                else 
+                                {
+                                    regressor_list = '<em><strong>' + results[2][0] + '</em></strong>, <em><strong>' + results[3][0] + '</em></strong>';
+                                }
+ 
+                                regressor_list = regressor_list + ', and every other variable';                              
+                            }
+
+                            var data_content = '<p>In this case, the estimated coefficient tells us that if we increase <em><strong>' + results[j][0] + '</strong></em> by one unit but keep the value of ' + regressor_list + ' the same, then <em><strong>on average</strong></em> we can expect ' + gradation + ' of <em><strong>' + abs_cell_value + '</em></strong> units in <em><strong>' + window.internal_object_names[ dv_ind_pos ] + '</strong></em>.</p>';
+
+                        }
+                        else
+                        {
+                            var regressor_list = '<em><strong>' + results[2][0] + '</em></strong>';
+                            var variable_phrase = 'those regressors to be <em><strong>0</em></strong> at the same time';
+                            if( results.length < 4 )
+                            {
+                                regressor_list = regressor_list + ' is';
+                                variable_phrase = '<em><strong>' + results[2][0] + '</em></strong> to be <em><strong>0</em></strong>';
+                            }
+                            else if( results.length < 5 )
+                            {
+                                regressor_list = regressor_list + ' and <em><strong>' + results[3][0] + '</em></strong> are';
+                            }
+                            else if( results.length < 6 )
+                            {
+                                regressor_list = regressor_list + ', <em><strong>' + results[3][0] + '</em></strong>, and <em><strong>' + results[4][0] + '</em></strong> are';
+                            }
+                            else
+                            {
+                                regressor_list = regressor_list + ', <em><strong>' + results[3][0] + 'and every other variable are';                              
+                            }
+
+                            var data_content = '<p>In this case, the estimated coefficient for the <em><strong>intercept</em></strong> tells us that <em><strong>' + window.internal_object_names[ dv_ind_pos ] + '</strong></em> is <em><strong>' + cell_value + '</em></strong> when ' + regressor_list + ' set to <em><strong>0</em></strong>.</p><br/><p>You should be aware, however, that in some cases it may not possible for every regressor to be set to <em><strong>0</em></strong>.';
+                        }                        
+                    }
+
+                    //
+                    //  EXPLANATION OF STANDARD ERROR
+                    //
+
+                    else if ( k == 2 )
+                    {
+                        if( results[j][k-1] > 0 )
+                        {
+                            gradation = 'increase';
+                        }
+                        else
+                        {
+                            gradation = 'decrease';
+                        }
+
+                        var data_content = '<p>The <em><strong>standard error</em></strong> helps us know how confident we can be that our estimated coefficient is correct.</p><br/><p>In this case, the error is ';
+
+                        if( Math.abs( results[j][k] ) > Math.abs( results[j][k-1] ) )
+                        {
+                            data_content = data_content + '<em>greater</em> than our estimated coefficient, so we\'ve got a problem &mdash; we can\'t even be confident ';
+                            
+                            if( j == 1 ) // if intercept
+                            {
+                               var this_content = 'that the <em><strong>intercept</em></strong> is ';
+                                if( results[j][k-1] > 0 )
+                                {
+                                    this_content = this_content + 'positive.';
+                                }
+                                else
+                                {
+                                    this_content = this_content + 'negative.';
+                                }
+                                data_content = data_content + this_content;                                
+                            }
+                            else
+                            {
+                                data_content = data_content + 'that an increase in <em><strong>' + results[j][0] + '</strong></em> will actually ' + gradation + ' the value of <em><strong>' + window.internal_object_names[ dv_ind_pos ] + '</strong></em>.</p>';
+                            }
+                        }
+                        else
+                        {
+                            data_content = data_content + '<em>less than</em> our estimated coefficient, so we\'re pretty sure that ';
+                            if( j == 1 ) // if intercept
+                            {
+                               var this_content = ' the <em><strong>intercept</em></strong> is ';
+                                if( results[j][k-1] > 0 )
+                                {
+                                    this_content = this_content + 'positive.';
+                                }
+                                else
+                                {
+                                    this_content = this_content + 'negative.';
+                                }
+                                data_content = data_content + this_content;                                
+                            }
+                            else
+                            {
+
+                                data_content = data_content + ' an increase in <em><strong>' + results[j][0] + '</strong></em> will actually ' + gradation + ' the value of <em><strong>' + window.internal_object_names[ dv_ind_pos ] + '</strong></em>.</p>';
+
+                            }
+                        }
+                    }
+
+
+                    //
+                    //  EXPLANATION OF T-STATISTIC
+                    //
+
+                    else if ( k == 3 )
+                    {
+
+                        var this_regressor = '<em><strong>' + results[j][0] + '</em></strong>';
+                        if( j == 1 )
+                        {
+                            var this_regressor = 'the <em><strong>intercept</em></strong> ';
+                        }
+                        var data_content = '<p>The <em><strong>t-statistic</em></strong> also helps us know how confident we can be that our estimated coefficient is correct.</p><br/><p>In general, the bigger the <em><strong>t-statistic</em></strong> is the better. That said, if it gets too high, then there\'s usually something wrong, such as multicollinearity.</p>';
+                    }
+
+                    else
+                    {
+                        var this_regressor = '<em><strong>' + results[j][0] + '</em></strong>';
+                        if( j == 1 )
+                        {
+                            var this_regressor = 'the <em><strong>intercept</em></strong> ';
+                        }
+
+                        var data_content = '<p>In this case, the <em><strong>p-value</em></strong> tells us how likely it is that we would get the same result for the estimated coefficient of ' + this_regressor + ' even if in reality ';
+
+                        if( j == 1 )
+                        {
+                            data_content = data_content + ' the coefficient was <em><strong>0</em></strong>.</p><br/>';
+                        }
+                        else
+                        {
+                            data_content = data_content + this_regressor +  ' had no effect on <em><strong>' + window.internal_object_names[ dv_ind_pos ] + '</em></strong>.</p><br/>';
+
+                        }
+                       
+                        data_content = data_content + '<p>The lower the <em><strong>p-value</em></strong> is, then, the happier we are &mdash; it means the result we obtained is less likely to be due to random chance';
+
+                        if( j == 1 ) 
+                        {
+                            data_content = data_content + '.</p>';
+                        }
+                        else
+                        {
+                            data_content = data_content + ' and more likely to reflect the actual effect of ' + this_regressor;
+
+                            data_content = data_content + ' on <em><strong>' + window.internal_object_names[ dv_ind_pos ] + '</em></strong>.</p>';
+                        }
+                    }
+
+
+
+                        html_string = 
+                        html_string + '<div class="span1"><a href="javascript:;" rel="popover" data-content="' + data_content + '" data-original-title="What Does This Mean?">' + cell_value + '</a></div>';
+
+                }
+                else if( j < 1 )
+                {
+                        html_string = html_string + '<div class="span1 ">' + cell_value + '</div>';
+
+                }
+                else if( k < 1 )
+                {
+                         html_string = html_string + '<div class="span1 ">' + cell_value + '</div>';
+                }
+                else
+                {
+
+                }
+            }
+            html_string = html_string + '</div>';
+        }
+
+        html_string = html_string + '</div>';
+
+        return html_string;
+}
+
+
+function statement_evaluator(n)
+{
+                        // DEBUGGER
+                        if(window.jregs_debugger == true)
+                        {
+                            var message = "<li>Now we're in <code>function statement_evaluator()</code>. We're going to split the input statement into its constituent elements, breaking it up at any math operator or parenthesis. Then we're going to pass the array off to <code>function statement_block_evaluator()</code>.</li>";
+                            $('#jregs_debugger').append(message);
+                        }  
+
+    // SPLITS THE INPUT STATEMENT AT ANY MATH OPERATOR OR PARENTHESIS
+    var n = n.split(/[\+\-\=\(\)\*\/\,]/);
+
+    var open_array = []; // creates an array with index position of all open parentheses
+    var closed_array = []; // same, but for closed parentheses
+    var start_loc, end_loc;
+    
+    //
+    //  1. IF THERE ARE ANY PARENTHESES, FIND THE LOCATION OF THE LAST UNINTERRUPTED ONE
+    //
+    for( var i = 0; i < n.length; i++ )
+    {
+        if( n[i].search( open_marker ) > -1 )   
+        {
+            open_array.push(i);
+        }
+    }
+    if( open_array.length > 0)
+    {
+        start_loc = open_array.pop();
+        // GET LOCATION OF FIRST INSTANCE OF CLOSED PARENTH AFTER LAST OPEN ONE
+        for(var i = start_loc; i < n.length; i++)
+        {
+            if( n[i].search( close_marker ) > -1 )
+            {
+                end_loc = i;
+                break;
+            }
+        }
+    }
+
+    //
+    // 2. IF THERE ARE NO OPEN PARENTHESES
+    //
+    else
+    {
+        for(var i = 0; i < n.length; i++)
+        {
+            // IF THIS IS AN ASSIGNMENT
+            if( n[i].search( equals_marker ) > -1 )
+            {
+
+                start_loc = i;
+                end_loc   = n.length;
+                break;
+            }
+            // IF THIS IS CALCULATION
+            else
+            {
+                start_loc = 0;
+                end_loc   = n.length;
+            }
+        }
+    }
+    
+    n = statement_block_evaluator( n , start_loc , end_loc );
+    if( n ) 
+    {
+        return remove_markers( n.join( '' ) );                  
+    }
+    else
+    {
+        return false;
+    }
+}
+    
+//
+
+
+
+function statement_block_evaluator(n,start_loc,end_loc)
+{
+
+
+                        // DEBUGGER
+                        if(window.jregs_debugger == true)
+                        {
+                            var message = "<li>Now we\'re in <code>function statement_block_evaluator()</code>. We\'re going to evaluate each element from element " + start_loc + " [" + remove_markers( n[start_loc] ) + "] to " + end_loc + " [" + remove_markers( n[end_loc] ) + "] out of " + n.length + "     elements.</li> ";
+                            $('#jregs_debugger').append(message);
+                        }
+
+
+    var block_value, last_iteration, is_assignment, is_array, print_variable;               
+
+    // If we're in the last iteration
+    if( n[start_loc].search( equals_marker ) > -1 || start_loc === 0 ) 
+    {
+        last_iteration = true;
+        if( n[start_loc].search( equals_marker ) > -1 )
+        {
+            is_assignment = true;
+            n[start_loc] = n[start_loc].replace( equals_marker, '' );
+        } 
+    }
+    else
+    {
+        n[start_loc] = n[start_loc].replace( open_marker , '' );        
+    }
+
+    
+    // Set initial value
+    if( isNumber ( n[start_loc] ) )
+    {
+        block_value = parseFloat( n[start_loc] );
+    }
+    else
+    {
+        // see if this is a declared obj
+        var obj_ind_pos = $.inArray( n[ start_loc ], window.internal_object_names);
+        if( obj_ind_pos > -1 )
+        {
+            // if the declared obj is an array
+            if( window.internal_object_values[ obj_ind_pos ].length )
+            {
+                block_value = window.internal_object_values[ obj_ind_pos ];
+                is_array = true;                
+            }     
+
+            // if the declared obj is a scalar
+            else
+            {
+                block_value = parseFloat( create_duplicate( window.internal_object_values[ obj_ind_pos ]) );                
+            }  
+        }
+
+        else if( n[ start_loc ].search( minus_marker ) > -1 )
+        {
+            n[ start_loc ] = n[ start_loc ].replace( minus_marker, '' );
+            // FIX THIS TO CONFIRM IT'S NUMBERIC
+            block_value = 0 - parseFloat( n[ start_loc ] );
+        }
+        else
+        {
+            Message_error( 'Initial element of the current statement block is neither a number nor a recognized object. The statement block begins " ('+ remove_markers( n[ start_loc ] ) + '... " ');
+            return false;
+        }
+    }
+
+
+    if( block_value.length )
+    {
+        is_array=true;
+    }
+
+    // if there's more than one term in the statement block
+    if (end_loc-start_loc > 1)
+    {
+        for(var k = start_loc+1; k < end_loc; k++) //start after 
+        {  
+
+            var is_operator;
+
+            if( n[k].search( plus_marker ) > -1 ) { is_operator = true; }
+            if( n[k].search( minus_marker ) > -1 ) { is_operator = true; }
+            if( n[k].search( multiply_marker ) > -1 ) { is_operator = true; }
+            if( n[k].search( divide_marker ) > -1 ) { is_operator = true; }
+
+
+            if( is_operator )
+            {
+                // this is a little special .js jujitsu ... w/o it, 
+                // altering a replica of n[k] will alter n[k] itself.
+                function create_duplicate(j)
+                {
+                    if( j.substring )
+                    {
+                        j=j.replace( plus_marker, '' );
+                        j=j.replace( minus_marker, '' );
+                        j=j.replace( multiply_marker, '' );
+                        j=j.replace( divide_marker, '' );
+                    }
+                    return j;   
+                }
+                
+                var z = create_duplicate( n[k] ); 
+                var obj_ind_pos = $.inArray( z, window.internal_object_names );
+                //alert( 'the object name is ' + z + '\r the object position is ' + obj_ind_pos );
+
+                // IF the element being added/subtracted/multiplied to the current block value is numeric
+                if( isNumber ( z ) )
+                {
+
+                    // If the current block value is an array
+                    if( is_array )
+                    {
+                        for( j=0; j < block_value.length; j++ )
+                        {
+                    
+                            if( n[ k ].search( plus_marker ) > -1 )
+                            {
+                                block_value[ j ] = parseFloat( block_value[ j ] ) + parseFloat( z );
+                            }                    
+                            else if ( n[ k ].search( minus_marker ) > -1 )
+                            {
+                                block_value[ j ] = parseFloat( block_value[ j ] ) - parseFloat( z );
+                            }
+                            else if ( n[ k ].search( multiply_marker ) > -1 )
+                            {
+                                block_value[ j ] = parseFloat( block_value[ j ] ) * parseFloat( z );
+                            }
+                            else
+                            {
+                                Message_error( 'Not an appropriate operator.' );
+                                return false;
+                            }
+                        }
+
+                        if( n[ k ].search( multiply_marker ) > -1 )
+                        {
+                        var new_object_name = 'internal_' + window.internal_object_names.length;
+                        object_mapper( new_object_name, block_value, false, new_object_name );
+                        block_value = new_object_name; 
+                        }
+                    }
+
+                    // If the current block value is a scalar
+                    else
+                    {
+                        if( n[k].search( plus_marker ) > -1 ) { block_value += parseFloat( z ); }
+                        else if( n[k].search( minus_marker ) > -1 ) { block_value -= parseFloat( z ); }
+                        else if( n[k].search( multiply_marker ) > -1 ) { block_value = parseFloat( block_value ) * parseFloat( z ); }
+                        else if( n[k].search( divide_marker ) > -1 ) { block_value = parseFloat( block_value ) / parseFloat( z ); }
+                        else { Message_error( 'Not an appropriate operator.' ); }
+                    }
+                }
+
+
+                // IF the element being added/subtracted/multiplied to the current block value is an internal object
+                else if( obj_ind_pos > -1 )
+                {
+                
+                    // If that internal object is an array
+                    if( window.internal_object_values[ obj_ind_pos ].length )
+                    {
+
+                            // If the current block value is *NOT* an array
+                            if( !is_array )
+                            {
+                                var block_value_array = [];  
+                                for( var j=0; j < window.internal_object_values[ obj_ind_pos ].length; j++ )
+                                {
+
+                                    if( n[k].search( plus_marker ) > -1 )
+                                    {
+                                        block_value_array[j] = parseFloat( block_value ) + parseFloat( window.internal_object_values[ obj_ind_pos ][ j ] );
+                                    }
+                                    else if( n[k].search( minus_marker ) > -1 )
+                                    {
+                                        block_value_array[j] = parseFloat( block_value ) - parseFloat( window.internal_object_values[ obj_ind_pos ][j] );                                        
+                                    }
+                                    else if( n[k].search( multiply_marker ) > -1 )
+                                    {
+                                        block_value_array[j] = parseFloat( block_value ) * parseFloat( window.internal_object_values[ obj_ind_pos ][j] );                                        
+                                    }
+
+                                    else if( n[k].search( divide_marker ) > -1 )
+                                    {
+                                        block_value_array[j] = parseFloat( block_value ) / parseFloat( window.internal_object_values[ obj_ind_pos ][j] );                                        
+                                    }
+
+                                    else
+                                    {
+                                        Message_error( 'Operator is incorrect.' );
+                                        return false;
+                                    }
+                                }
+                                block_value = block_value_array;
+                                is_array = true;
+
+                                var new_object_name = 'internal_' + window.internal_object_names.length;
+                                object_mapper( new_object_name, block_value, false, new_object_name );
+                                block_value = new_object_name;
+                            } 
+
+                            // If the current block value is an array
+                            else
+                            {
+                                // Make sure the lengths of the current block value and the declared object are the same
+                                if( block_value.length == window.internal_object_values[ obj_ind_pos ].length )
+                                {
+                                    var block_value_array = [];
+             
+                                    for( var j=0; j < block_value.length; j++ )
+                                    {
+                                        if( n[k].search( plus_marker ) > -1 )
+                                        {
+
+                                            block_value_array[j] = parseFloat( block_value[ j ] ) + parseFloat( window.internal_object_values[ obj_ind_pos ][ j ] );                                            
+                                        }
+                                        else if( n[k].search( minus_marker ) > -1 )
+                                        {
+                                            block_value_array[j] = parseFloat( block_value[ j ] ) - parseFloat( window.internal_object_values[ obj_ind_pos ][ j ] );                                            
+                                        }
+                                        else if( n[k].search( multiply_marker ) > -1 )
+                                        {
+                                            block_value_array[j] = parseFloat( block_value[ j ] ) * parseFloat( window.internal_object_values[ obj_ind_pos ][ j ] );                                            
+                                        }
+                                        else if( n[k].search( divide_marker ) > -1 )
+                                        {
+                                            block_value_array[j] = parseFloat( block_value[ j ] ) / parseFloat( window.internal_object_values[ obj_ind_pos ][ j ] );                                            
+                                        }
+                                        else
+                                        {
+                                            Message_error( 'Operator is incorrect.' );
+                                            return false;
+                                        }
+                                    }
+                                    block_value = block_value_array;
+                                }
+                                else
+                                {
+                                    Message_error( 'Alas, you can\'t add arrays of different lengths. <strong><code>' + window.internal_object_names[ obj_ind_pos ] + '</code></strong> is an array with ' + window.internal_object_values[ obj_ind_pos ].length + ' elements, and the object it\'s being added to has ' + block_value.length + ' elements. \r ' + window.internal_object_names[ obj_ind_pos ] + ' ' + window.internal_object_values[ obj_ind_pos ] + ' \r block: ' + block_value  );
+                                    return false;
+                                }
+                            }
+                    }
+
+                    // If the internal object is a scalar
+                    else if( isNumber( window.internal_object_values[ obj_ind_pos ] ) )
+                    {
+                        if( n[k].search( plus_marker ) > -1 )
+                        {
+                            block_value += parseFloat( window.internal_object_values[ obj_ind_pos ] );
+                        }
+                        else if( n[k].search( minus_marker ) > -1 )
+                        {
+                            block_value -= parseFloat( window.internal_object_values[ obj_ind_pos ] );                            
+                        }
+                        else if( n[k].search( multiply_marker ) > -1 )
+                        {
+                            block_value = parseFloat( block_value ) * parseFloat( window.internal_object_values[ obj_ind_pos ] );                            
+                        }    
+                        else if( n[k].search( divide_marker ) > -1 )
+                        {
+                            block_value = parseFloat( block_value ) / parseFloat( window.internal_object_values[ obj_ind_pos ] );                            
+                        }                     
+                        else
+                        {
+                            Message_error( 'Error with operators.' );
+                            return false;
+                        } 
+                    }
+
+                    // If the internal object is neither an array nor a scalar
+                    else
+                    {
+                        Message_error( window.internal_object_names[ obj_ind_pos ] + ' is neither an array nor a scalar' );
+                        return false;
+                    }
+                }
+
+                // If the element being added to the current block value is neither a number nor an internal object
+                else
+                {
+                    Message_error( 'The current element, ' + remove_markers( n[k] ) + ', is neither a number nor a variable.' );
+                    return false;
+                }
+            }              
+
+            else if( n[k].search( comma_marker ) > -1 )
+            {
+                var function_match = delete_operators( n[ k-2 ] );
+                if( function_match == 'round' )
+                {
+                    var block_value = jregs_round( n[k-1], delete_operators( n[k] ) );
+                    n[ k-2 ] = n[ k-2 ].replace( /round/g , '' );
+                }
+                else if( function_match == 'rnorm' || function_match == 'rnormal' )
+                {
+                    var this_array = [];
+                    var rnorm_sd = delete_operators( n[ k+1 ] );
+                    var rnorm_mean = delete_operators( n[ k ] );
+                    if( isNumber( rnorm_sd ) && isNumber ( rnorm_mean ) )
+                    {
+                        for( j=0; j<remove_markers( n[k-1] ); j++ )
+                        {
+                            this_array.push( parseFloat(rnorm_sd)*parseFloat(jregs_rnorm()) + parseFloat(rnorm_mean) );
+                        }
+                    }
+                    else
+                    {
+                        Message_error( 'The mean and standard deviation must be numeric.' );
+                        return;
+                    }
+
+                    // we're going to create an internal placeholder for the array so it doesn't trip up 
+                    // our statement_evaluator
+                    block_value = 'internal_' + window.internal_object_names.length;
+                    object_mapper( block_value, this_array, false, block_value );
+
+
+                    n[ k-2 ] = n[ k-2 ].replace( /rnormal/g , '' );
+                    n[ k-2 ] = n[ k-2 ].replace( /rnorm/g , '' );
+                    n[ k-1 ] = '';
+                    n[ k ]   = '';
+                    n[ k+1 ] = '';
+                    n[ k+2 ] = '';
+                    break;
+                }
+            }
+            else
+            {
+                Message_error( 'Something\'s wrong with the part of the input statement that reads " (' + remove_markers( n[k] ) + ' ..."' );
+                Message_error( 'N: ' + n );
+                return false;
+            }
+                                        if(window.jregs_debugger == true)
+                                        {
+                                            $('#jregs_debugger').append("<li>"+block_value+"</li>");
+                                        }    
+
+        n[k] = '';      // this effectively deletes the element. When we later use .join(), it won't be picked up           
+        }
+    }                           
+    
+    if( last_iteration )
+    {
+        objvalue = [];
+        objvalue = block_value; 
+
+        // NOTE: this might be problematic when storing arrays, but need it to get length in objSum()
+        if( is_assignment ) 
+        {
+            object_mapper( n[0] , objvalue, true, n[0] );
+
+            // if we're dealing with an array
+            if( !isString( objvalue ) && !isNumber( objvalue ) )
+            {
+                Message_success ( objvalue, n[0] );
+            }
+            // if we're dealing with a string or a number
+            else
+            {
+                var this_message = n[0] + '=' + objvalue;
+                var this_message = this_message.toString(); 
+                Message_success( objvalue, n[0], false );
+            }
+
+                                // DEBUGGER
+                                if(window.jregs_debugger == true)
+                                {
+                                    var message = "<li>Now we've finished the last iteration. The final form of the input statement is: <strong>" + n[0] + "=" + objvalue + "</strong>. To store this value, we send it to <code>function object_mapper()</code>.";
+                                    $('#jregs_debugger').append(message);
+                                }    
+        }        
+        else
+        {
+            if( end_loc - start_loc == 1 && obj_ind_pos > -1 )
+            {
+                Message_success( block_value, window.internal_object_names[ obj_ind_pos ]);
+            }
+            else
+            {
+                Message_success( block_value, false, false );
+            }
+                                // DEBUGGER
+                                if(window.jregs_debugger == true)
+                                {
+                                    var message = "<li>Now we've finished the last iteration. The final value of the input statement is: <strong>" + block_value + ".";
+                                    $('#jregs_debugger').append(message);
+                                }    
+
+
+        }
+        n = [];
+        n.push( block_value );
+        return n;
+    }
+
+    n[ end_loc ] = ''; // this effectively deletes the element. When we later use .join(), it won't be picked up    
+    n[ start_loc ] = block_value;
+    return n;
+}
+
+
+
+
+function insert_markers(n)
+{
+	if( n )
+    {
+        n = n.replace(/[=]/g,'='+equals_marker);
+        n = n.replace(/[+]/g,'+'+plus_marker);
+        n = n.replace(/[-]/g,'-'+minus_marker);
+        n = n.replace(/[*]/g,'*'+multiply_marker);
+        n = n.replace(/[\/]/g,'/'+divide_marker);
+        n = n.replace(/[(]/g,'('+open_marker);
+        n = n.replace(/[)]/g,')'+close_marker);        
+        n = n.replace(/[,]/g,')'+comma_marker);        
+
+    }
+	return n;	
+}
+
+function remove_markers(n)
+{
+	// NOTE: for some reason, in Javascript you can't use variables within 
+	// replace function. Be sure to update this with any updates to the markers above.
+    if( n )
+    {
+        n = n.replace(/###/g,'=');
+        n = n.replace(/#!!/g,'+');
+        n = n.replace(/#@@/g,'-');
+        n = n.replace(/#%%/g,'*');
+        n = n.replace(/##!/g,'/');
+        n = n.replace(/##&/g,'(');
+        n = n.replace(/##~/g,')');
+        n = n.replace(/#~~/g,',');
+    }
+    return n;
+}
+
+function delete_operators(n)
+{
+    if( n )
+    {
+        n = n.replace(/###/g,'');
+        n = n.replace(/#!!/g,'');
+        n = n.replace(/#@@/g,'');
+        n = n.replace(/#%%/g,'');
+        n = n.replace(/##!/g,'');
+        n = n.replace(/#~~/g,'');
+
+    }
+    return n;
+}
+
+
+function enclose_multiply_markers(n)
+{
+
+    //
+    //  1. CHECK FOR OPEN PARENTHESES
+    //
+
+    if( n.search( /\(/ ) > -1 &&  n.search( /\)/ ) < 0 )
+    {
+            Message_error( 'Uh oh. There is at least one open parenthesis but no closed ones.' );
+            return false; 
+    }
+    else if( n.search( /\)/ ) > -1 && n.search( /\(/ ) < 0 )
+    {
+        Message_error( 'Uh oh. There is at least one closed parenthesis but no open ones.' );
+        return false;
+    }
+    else if( n.search( /\)/ ) > -1 && n.search( /\(/ ) > -1 )
+    {
+        if( n.match( /\(/g ).length != n.match( /\)/g ).length )  
+        {
+            Message_error( 'Uh oh. The number of open and closed parentheses is not the same.' );
+            return false;
+        }            
+    }
+    else
+    {
+
+    }
+
+    //
+    //  2. GET THE NUMBER OF MULTIPLICATION AND DIVISION OPERATORS
+    //
+
+    var multiply_divide_count = 0
+
+    if( n.search(/\*/) > -1 )
+    {
+        multiply_divide_count += n.match( /\*/g ).length;    
+    }
+
+    //
+    //  NOTE: this is a hack. I should be able to use this on the backslash, 
+    //          but for some reason couldn't get it to work. -CM, 9/20/12
+    //
+    n = insert_markers( n );
+
+    if( n.search(/##!/) > -1 )
+    {
+        multiply_divide_count += n.match( /##!/g ).length;    
+    }
+
+    n = n.split(/[\+\-\=\(\)\*\/]/);
+    n = remove_markers( n.join( '' ) ); 
+
+
+    //
+    //  3. HOWEVER MANY MULTIPLICATION/DIVISION OPERATORS THERE ARE,
+    //      LOOP THROUGH THE input_statement THAT MANY TIMES, EACH TIME CHECKING 
+    //      WHETHER THE OPERATOR IS ENCLOSED, AND ENCLOSING IF NEED BE
+    //
+
+    for( i=0; i < multiply_divide_count; i++)
+    {
+        n = enclose_loop( n );
+    }
+
+    return n;
+
+
+    //  
+
+    function enclose_loop( n )
+    {
+        var n = insert_markers(n);
+
+        n = n.split(/[\+\-\=\(\)\*\/]/);
+
+
+        //
+        // 1A. FOR EACH ELEMENT IN THE input_statement ...
+        //
+
+        for( var i = 0; i < n.length; i++ )
+        {
+
+
+
+            //
+            //  1B. ... CHECK WHETHER IT CONTAINS MULTIPLICATION/DIVISION OPERATOR ...
+            //
+
+            if( n[ i ].search( multiply_marker ) > -1 || n[ i ].search( divide_marker ) > -1 )
+            {
+                //alert( 'I am in at index ' + i + '. This evaluates as ' + remove_markers(n[i-1]) + remove_markers(n[i]) + remove_markers(n[i+1]));
+
+                //
+                //  1C. IF IT DOES, CHECK IF THE OPERATOR IS ALREADY ENCLOSED, IE [ '...)*(...' OR '(...*...)' ]
+                //
+    
+                var is_enclosed = false;
+
+                if( n[ i-1 ] && n[ i+1 ] )
+                {
+                    
+                    // 1C a. IF '(...*...)'
+
+                    if( n[ i-1 ].search( open_marker ) > -1 && n[ i+1 ].search( close_marker ) > -1 )
+                    {
+                        is_enclosed = true;
+                    }
+                    
+
+                    // 1C b. IF '(...*(...'
+
+                    if( n[ i-1 ].search( open_marker ) > -1 && n[ i+1 ].search( open_marker ) > -1 )
+                    {
+                        var closed_pars = 0;
+                        var open_pars = 2;
+
+                        for( var j = i+2; j<n.length; j++ )
+                        {
+                            if( n[ j ].search( open_marker) > -1 )
+                            {
+                                open_pars++;
+                            }
+                            if( n[ j ].search( close_marker) > -1 )
+                            {
+                                closed_pars++;
+                            }
+                            if( closed_pars == open_pars )
+                            {
+                                is_enclosed = true;
+                                break;
+                            }
+                        }                        
+                    }
+
+
+                    // 1C c. IF ')...*)...'
+
+                    if( n[ i-1 ].search( close_marker) > -1 && n[ i+1 ].search( close_marker ) > -1 )
+                    {
+                        var closed_pars = 2;
+                        var open_pars = 0;
+
+                        for( var j = i-2; j>-1; j-- )
+                        {
+                            if( n[ j ].search( open_marker) > -1 )
+                            {
+                                open_pars++;
+                            }
+                            if( n[ j ].search( close_marker) > -1 )
+                            {
+                                closed_pars++;
+                            }
+                            if( closed_pars == open_pars )
+                            {
+                                is_enclosed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    
+                    // 1C d. IF '...)*(...'
+
+                    if( n[ i-1 ].search( close_marker) > -1 && n[ i+1 ].search( open_marker ) > -1 )
+                    {
+                        var check_left, check_right;
+
+
+                        // i:   first, we move left from closed parenthesis to left of the operator. 
+                        //      at each element, we check if the initial closed parenthesis to the immediate 
+                        //      left of the operator has been closed. if so, we check if there is an open 
+                        //      parenthesis immediately to its left. if there is, we set check_left to be true. 
+                        var closed_pars = 1;
+                        var open_pars = 0;
+
+                        for( var j = i-2; j>-1; j-- )
+                        {
+                            if( n[ j ].search( open_marker) > -1 )
+                            {
+                                open_pars++;
+                            }
+                            if( n[ j ].search( close_marker) > -1 )
+                            {
+                                closed_pars++;
+                            }
+                            if( closed_pars == open_pars )
+                            {
+                                if( n[j-1])
+                                {
+                                    if( n[j-1].search( open_marker ) > -1 )
+                                    {
+                                        //alert('we\'re in -- balance on left');
+                                        check_left = true;
+                                        break;
+                                    }
+                                }
+
+                            }
+                        }
+
+                        // ii:  second, we move right from the open parenthesis to the immediate right of the operator. 
+                        //      at each element, we check if the initial open parenthesis has been closed. if so, we 
+                        //      check if there is a closed parenthesis immediately to its right. if there is, then
+                        //       we set check_left to be true. 
+                        var closed_pars = 0;
+                        var open_pars = 1;
+
+                        for( var j = i+2; j < n.length; j++ )
+                        {
+                            if( n[ j ].search( open_marker) > -1 )
+                            {
+                                open_pars++;
+                            }
+                            if( n[ j ].search( close_marker) > -1 )
+                            {
+                                closed_pars++;
+                            }
+                            if( closed_pars == open_pars )
+                            {
+                                if( n[j+1])
+                                {
+                                    if( n[j+1].search( close_marker ) > -1 )
+                                    {
+                                        check_right = true;
+                                        break;
+                                    }                                
+                                }
+    
+                            }
+                        }
+
+                        // iii: if both check left and check right are true, then the operator must be enclosed. joy!
+                        if( check_right && check_left )
+                        {
+                            is_enclosed = true;
+                        }
+                    }       
+                }
+
+
+                //
+                //  2. IF ELEMENT IS **NOT** ALREADY ENCLOSED, LET'S ENCLOSE IT
+                //
+
+                if( !is_enclosed )
+                {
+                    //
+                    //  3. LET'S START BY INSERTING OPEN PARENTHESIS IN PRIOR ELEMENT
+                    //
+
+                    if( n[ i-1 ] )
+                    {
+                        
+                        // 3A. IF PRIOR ELEMENT CONTAINS ADDITION OPERATOR, PLACE AN OPEN PARENTHESIS *AFTER* IT
+                        if( n[ i-1 ].search( plus_marker ) > -1 ) 
+                        {
+                            n[ i-1 ] = n[ i-1 ].replace( plus_marker, '' ); 
+                            n[ i-1 ] = plus_marker + open_marker + n[ i-1 ];
+                        }   
+
+                        // 3B. IF PRIOR ELEMENT CONTAINS SUBTRACTION OPERATOR, PLACE AN OPEN PARENTHESIS *AFTER* IT
+                        else if( n[ i-1 ].search( minus_marker ) > -1 )
+                        {
+                            n[ i-1 ] = n[ i-1 ].replace( minus_marker, '' ); 
+                            n[ i-1 ] = minus_marker + open_marker + n[ i-1 ];                
+                        }
+
+                        // 3C. IF PRIOR ELEMENT CONTAINS EQUALS OPERATOR, PLACE AN OPEN PARENTHESIS *AFTER* IT
+                        else if( n[ i-1 ].search( equals_marker ) > -1 )
+                        {
+                            n[ i-1 ] = n[ i-1 ].replace( equals_marker, '' ); 
+                            n[ i-1 ] = equals_marker + open_marker + n[ i-1 ];                
+                        }
+
+                        // 3D. IF PRIOR ELEMENT CONTAINS CLOSED OPERATOR, PLACE OPEN PARENTHESIS *PRIOR* TO ITS ORIGINATING
+                        //      OPEN PARENTHESIS
+                        else if( n[ i-1 ].search( close_marker ) > -1 )
+                        {
+                            var havent_left = 0;
+                            var closed_pars = 1;
+                            var open_pars = 0;
+                            for(k = i-2; k > -1; k--)
+                            {
+                                if( n[ k ].search( open_marker ) > -1 )
+                                {
+                                    open_pars++;
+                                }
+                                if( n[ k ].search( close_marker ) > -1)
+                                {
+                                    closed_pars++;
+                                }
+                                if( closed_pars == open_pars )
+                                {
+                                    n[ k ] = open_marker + n[ k ];
+                                    break;
+                                }
+                                if( !n[ k ] && closed_pars != open_pars )
+                                {
+                                    n[ k ] = open_marker;
+                                    break;
+                                }
+                                if( havent_left > 0)
+                                {
+                                    break;
+                                }
+                            }                
+                        }
+
+                        // 3E. IF THIS IS BEGINNING OF STATEMENT BLOCK, PLACE AN OPEN PARENTHESIS *BEFORE* STATEMENT BLOCK
+                        else
+                        {
+                            n[ i-1 ] = open_marker + n[ i-1 ];  
+                        }
+                    }
+
+
+                    //
+                    //  4. NOW LET'S INSERT CLOSED PARENTHESIS AT APPROPRIATE POSTERIOR ELEMENT
+                    //
+
+                    for(var k = i; k < n.length; k++ )
+                    {
+                            var open_parenths = 1;
+                            var close_parenths = 0;
+                                
+                            if( n[i+1] )
+                            {
+                                for(var k = i+1; k < n.length; k++ )
+                                {
+                                    if( n[k].search( open_marker ) > -1 )
+                                    {
+                                        open_parenths++;
+                                    }
+                                    if( n[k].search( close_marker ) > -1 )
+                                    {
+                                        close_parenths++;
+                                    }
+                                }     
+                            }
+            
+
+                            if( open_parenths != close_parenths)
+                            {
+
+                                if( n[ i+1 ])
+                                {
+                                    var next_is_open;
+
+                                    if( n[i] == multiply_marker && n[i+1].search( open_marker ) > -1 ) 
+                                    {
+                                        next_is_open = true;
+                                    }
+                                    if( n[i] == divide_marker   && n[i+1].search( open_marker ) > -1 ) 
+                                    {
+                                        next_is_open = true;
+                                    }  
+
+
+                                    // IF the '*' or '/' is followed by open parenthesis, eg, 10+(4*(2+4)
+                                    // Whene're going to make it, eg, 10+(4*(2+4))
+                                    if ( next_is_open ) 
+                                    {
+                                        for( var k = i; k < n.length; k++ )
+                                        {
+                                            if( n[k].search( close_marker ) > -1 )
+                                            {
+                                                n[k] = n[k] + close_marker;
+                                                return remove_markers( n.join( '' ) );
+                                            }
+                                        }
+                                    }                              
+                            
+                                    // If the '*' or '/' is not followed by open parenthesis, eg, ' 10+(4*2+4 ',
+                                    // then we're going to make it, eg, ' 10+(4*2)+4 '
+                                    else
+                                    {   
+                                        n[ i+1 ] = close_marker + n[ i+1 ]; 
+                                        return remove_markers( n.join(''));
+                                    }
+                                }
+                                else
+                                {
+                                    n[ i+1 ] = close_marker;
+                                    return remove_markers( n.join(''));                                
+                                }
+                            }
+                    }
+                    return remove_markers( n.join( '' ) );
+
+                }
+         
+            }
+        }
+        return remove_markers( n.join( '' ) );
+    }
+}
+
+function jregs_print_input_statements()
+{
+
+    var input_html      = '<div class="row"> <div class="input-statement  span9"><span>' + window.input_statement_history[ window.input_statement_history.length - 1 ] + '</span></div></div>';
+    $( '#resultsHistories' ).prepend( input_html );
+
+}
+
+function Message_success( message, object_name, is_html )
+{
+    var output_html     = '<div class="result-table"><div class="row"><div class="output-statement span9">' ;
+
+    if( !is_html )
+    {
+        if( !isString( message )  && message[1] )
+        {
+
+            var dims = dim( message );
+
+            // this just creates a printable list of array values
+            //output_html = output_html + '<ul>';
+            //for( var i=0; i < message.length; i++ )
+            //{
+            //    output_html = output_html + '<li class="">[' + i + '] ' + message[i] + '</li>';
+            //}
+            //output_html = output_html + '</ul>';
+            // this inserts the list in the DOM
+
+            // now we prepend with a message
+            if( dims.length > 1 )
+            {
+                $( '#resultsHistories' ).prepend( '<li class="error-alert">'+message[1][10]+'</li>' );
+
+                $( '#resultsHistories' ).prepend( '<li class="alert">Matrix</li>' );
+                alert( message[1][10] );
+                alert( message );
+            }
+            else if( dims.length == 1 && dims > 1 )
+            {
+                var max_rows = 10;
+                if( message.length < 20 )
+                {
+                    max_rows = jregs_round ( message.length / 2, 0 ) ;
+                }
+
+                for( var j=0; j < max_rows + 1; j++ )
+                {
+                    if( j==0 ) output_html = output_html + '<div class="span9 top-row">';
+                    else if( j == 1 ) output_html = output_html + '<div class="span9 first-data">';
+                    else if( j == max_rows ) output_html = output_html + '<div class="span9 last-data">';
+                    else output_html = output_html + '<div class="span9 main-row">';
+                    
+
+                    if( j==0 )
+                    {
+                        output_html = output_html + '<div class="span1">Index</div><div class="span1">Value</div><div class="span1">Index</div><div class="span1">Value</div>'; 
+                        output_html = output_html + '</div>'; // note: ends .top-row 
+                    }
+                    else
+                    {
+                        for( var k=0; k<4; k++ )
+                        {
+
+                            var last_index_num = message.length - max_rows + j;
+
+                            if( k == 0 )
+                            {
+                                output_html = output_html + '<div class="span1">[' + j + ']</div>';
+                            } 
+                            else if( k == 1 )
+                            {
+                                output_html = output_html + '<div class="span1">' + jregs_round( message[ j - 1 ], 4).toFixed( 4 )  + '</div>';
+                            }
+                            else if( k == 2 )
+                            {
+                                output_html = output_html + '<div class="span1">[' + last_index_num + ']</div>';
+                            } 
+                            else if( k == 3 )
+                            {
+                                output_html = output_html + '<div class="span1">' + jregs_round( message[ last_index_num - 1 ], 4 ).toFixed( 4 ) + '</div>';
+                            }
+                        }   
+                        output_html = output_html + '</div>'; // note: ends .main-row                                
+                    }
+                }
+            }
+            else
+            {
+                output_html = output_html + '<div class="span9 result-row"><div class="span1 input-box">' + object_name + '</div><div class="span1 output-box">' + message + '</div></div>';
+            }
+        }
+        else
+        {
+            if( !object_name )
+            {
+                output_html = output_html + '<div class="span9 result-row"><div class="span1 input-box">Result</div><div class="span2 output-box">' + message + '</div></div>';
+            }
+            else 
+            {
+                output_html = output_html + '<div class="span9 result-row"><div class="';
+                if( object_name.length > 12 ) {output_html=output_html+ 'span3 ';}
+                else if (object_name.length > 5 ) {output_html=output_html + 'span2 ';}
+                else {output_html=output_html+'span1 ';} 
+                output_html = output_html + 'input-box">' + object_name + '</div><div class="span2 output-box">' + message + '</div></div>';
+            }
+
+        }
+    }
+    else
+    {
+        output_html = message;
+    } 
+    output_html = output_html + '</div></div></div>'; // close the divs started in initial values of output_html
+
+    $( '#resultsHistory' ).show();       
+    $( '#resultsHistories' ).prepend( output_html );
+    jregs_print_input_statements();
+
+}
+
+function Message_error( message )
+{
+    $( '#resultsHistories' ).prepend( '<li class="error-alert">' + message + '</li>' );
+    $( '#resultsHistory' ).show();
+    return;
+}
+
+function jregs_rnorm()
+{
+    // this function taken from http://www.protonfish.com/jslib/boxmuller.shtml
+    // http://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
+
+    var x = 0, y = 0, rds, c;
+
+    // Get two random numbers from -1 to 1.
+    // If the radius is zero or greater than 1, throw them out and pick two new ones
+    // Rejection sampling throws away about 20% of the pairs.
+    do {
+    x = Math.random()*2-1;
+    y = Math.random()*2-1;
+    rds = x*x + y*y;
+    }
+    while (rds == 0 || rds > 1)
+
+    // This magic is the Box-Muller Transform
+    c = Math.sqrt(-2*Math.log(rds)/rds);
+
+    return x*c;
+}
+
+function jregs_round(n,decimals)
+{
+    if( isNumber( decimals ) )
+    {
+        if( isNumber( n ) )
+        {
+            if( decimals < 1 )
+
+            {
+                return Math.round( parseFloat( n ) );
+            }
+            else
+            {
+
+                return Math.round( Math.pow(10,decimals)*parseFloat( n ) ) / Math.pow(10,decimals);
+            }
+        }
+        else
+        {
+            Message_error( 'The first value in the function round() needs to be a number.' );
+            return false;
+        }
+    }
+    else
+    {
+        Message_error( 'The second value in the function round() needs to be a number.' );
+        return false;
+    }
+    Message_success(' hi! the number to round is: ' + parseFloat(n) + ' the demicals to round to is: ' + decimals);
+}
+
+//  VALLUE STORE
+//
+
+function object_mapper( objname, objvalue, declared, label )
+{
+    
+                        if(window.jregs_debugger == true)
+                        {
+                            $('#jregs_debugger').append("</ul>"); // This closes <ul> from statement_evaluator()
+                            var message = "<p>Now we're in <code>function object_mapper()</code>. We're going to store " + objvalue + " as the value of " + objname + ".";
+                            $('#jregs_debugger').append(message);
+                        }    
+
+        var i = window.internal_object_names.length;
+        
+
+        //
+        // FIRST, CHECK IF WE'RE REASSIGNING PRE-EXISTING OBJECT
+        // 
+        var indexNamePos = $.inArray ( objname, window.internal_object_names ); // use JQUERY cuz javascript inconsistent on this
+        if( indexNamePos < 0 )
+        {
+            window.internal_object_names.push( objname ); 
+        }
+
+
+        // if the assignment is not a scalar, eg, x = y, or x = rnorm()
+        if ( !isNumber ( objvalue ) )
+        {    
+
+            //
+            // CHECK IF ASSIGNED VALUE IS PREXISTING OBJECT, eg x = y
+            // 
+            var indexPos = $.inArray ( objvalue , window.internal_object_names ); // use jQuery cuz IE doesn't support indexOf()
+
+            // IF ASSIGNED VALUE IS PRE-EXISTING OBJECT
+            if( indexPos > -1 )
+            {
+                // If we're assigning one pre-existing object to another pre-existing object
+                if( indexNamePos > -1 )
+                {
+                    window.internal_object_values[ indexNamePos ] = ( window.internal_object_values[ indexPos ] ); 
+                }
+                
+                // If we're assigning pre-existing object to new object
+                else
+                {
+                    window.internal_object_values.push( window.internal_object_values[ indexPos ] ); 
+                }
+            }
+       
+            // IF ASSIGNED VALUE IS NEW OBJECT (in this case, a string)
+            else 
+            {   
+                // If we're assigning new object to pre-existing object
+                if( indexNamePos > -1 )
+                {
+                    window.internal_object_values[ indexNamePos ] = objvalue; 
+                }
+                // If we're assigning one new object to another new object
+                else
+                {
+                    window.internal_object_values.push( objvalue ); 
+                    }
+                }
+            }       
+                
+        // IF THE ASSIGNED OBJECT IS A NUMBER, eg, x = 3
+        else
+        {
+            // If we're assigning scalar to pre-existing object
+            if( indexNamePos > -1 )
+            {
+                window.internal_object_values[ indexNamePos ] = ( objvalue ); 
+            }
+            // If we're assigning scalar to new object
+                else
+            {
+                window.internal_object_values.push( objvalue ); 
+            }
+        }   
+        
+        //
+        // If the assignment creates a new object, add link
+        // 
+        if ( indexNamePos < 0 && declared )
+        {
+            var popover_content = Popover_Summary( i );
+            var link = '<a href="javascript:;" id="" class=" datalinks" rel="popover" data-content="' + popover_content + '" data-original-title="Summary">' + objname + '</a>';
+            $( "#dataStores" ).prepend( link );
+            // this needs to be re-run after each new link is inserted into the DOM
+            $( 'a[rel=popover]' ).popover({
+                  html: true,
+                  trigger: 'hover'
+            });
+            document.getElementById( "consoleInput" ).value='';
+            $( '#dataStore' ).show();
+        }
+}
+
+
+function Popover_Summary( this_object_id )
+{
+    var ret = '';
+    var this_object_dimensions = dim( window.internal_object_values [ this_object_id ] );
+    if( this_object_dimensions.length )
+    {
+        var this_mean = getMean( window.internal_object_values[ this_object_id ] );
+        var this_variance = getVariance( window.internal_object_values[ this_object_id ], this_mean );
+        var this_standard_dev = jregs_standard_devs( this_variance, window.internal_object_values[ this_object_id ].length );
+        var this_median = jregs_medians( window.internal_object_values[ this_object_id ] );
+        ret = '<table>'
+        ret = ret + '<tr><td><em>Length</em>: &nbsp; </td><td>' + this_object_dimensions + '</td></tr>';
+        ret = ret + '<tr><td><em>Mean</em>: &nbsp; </td><td>' + jregs_round( this_mean, 3 ).toFixed ( 3 ) + '</td></tr>';
+        ret = ret + '<tr><td><em>Median</em>: &nbsp; </td><td>' + jregs_round( this_median, 3 ).toFixed( 3 ) + '</td></tr>';
+        //ret = ret + '<tr><td><em>Variance</em>: &nbsp; </td><td>' + jregs_round( this_variance, 5 ) + '</td></tr>';
+        ret = ret + '<tr><td><em>Std. Dev.</em>: &nbsp; </td><td>' + jregs_round( this_standard_dev, 3 ).toFixed( 3 ) + '</td></tr>';
+        ret = ret + '</table>';
+        return ret;
+    }
+    else
+    {
+        return '<p>' + window.internal_object_names[ this_object_id ] + ' = ' + window.internal_object_values[ this_object_id ] + '</p>';        
+    }
+    return ret;
+}
+
+
+//
+// This function creates pop ups when a link for a given variable is clicked. For scalars, it gives the value,
+// for everything else it gives a summary.
+//
+
+function objSum( this_object )
+{
+	// for scalars, just present the value
+	if( !window.internal_object_values[ this_object ].length ) 
+	{
+		alert(window.internal_object_names[ this_object ] + '=' + window.internal_object_values[ this_object ] + '.' );
+	}	
+    else
+    {
+        alert( 'dims: ' + dim( window.internal_object_values[ this_object ] ) + '\r\r' + window.internal_object_names[ this_object ] + ' is an array with ' + window.internal_object_values[ this_object ].length + ' elements. \r\r' + 'Mean: ' + getMean( window.internal_object_values[this_object] ) + '\r\rStd. Deviation: ' );
+    }
+	return;
+}
+
+//
+// This tests whether a value is numeric, which is actually more complicated than it would appear.
+// See this thread for more: http://stackoverflow.com/questions/18082/validate-numbers-in-javascript-isnumeric . 
+//
+
+function isNumber(n) {
+  return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+function isString(n) {
+    if( !n.substring ) {
+        return false;
+    }
+    else {
+        return true;
+    } 
+}
+
+
+function getTstats(betas,ses)
+{
+    var tstats = [];
+    for(i=0;i<betas.length;i++)
+    {
+        tstats.push(betas[i]/ses[i]);
+    }
+    return tstats;
+}
+
+
+function getSEs(mse,X)
+{
+    var stderrs = [];
+    for(i=0;i<X.length;i++)
+    {
+        stderrs.push(Math.sqrt(mse*X[i][i]));        
+    }
+    return stderrs;
+}
+
+function createResults(IVs) {
+    var results = [];
+    var firstRow = [];
+    firstRow.push('');
+    firstRow.push('Estimate');
+    firstRow.push('Std. Error');
+    firstRow.push('T-statistic');
+    results.push(firstRow);
+    for(i=0;i<window.Xis.betas.length;i++)
+    {
+        var newRow = [];
+        if(i==0)
+        {
+            newRow.push('Intercept ');
+        }
+        else
+        {
+            newRow.push(IVs[i-1]);
+        }
+        newRow.push(window.Xis.betas[i]);
+        newRow.push(window.model.stderrs[i]);
+        newRow.push(window.model.tstats[i]);
+        results.push(newRow);
+    }
+    return results;
+}
+
+function createYhats(Betas,Xis) {
+
+    var yhats = [];
+
+    for(j=0;j<Xis.length;j++)
+    {
+        var y_hat_i = 0;
+        y_hat_i += parseFloat(Betas[0]); // set y_hat_i to intercept
+        for(i=1;i<Betas.length;i++)
+        {
+            y_hat_i += parseFloat(Betas[i])*parseFloat(Xis[j][i]);
+        }
+        yhats.push(y_hat_i);
+    }
+    return yhats;
+}
+
+function createResiduals(yhats,DV)
+{
+    var residuals = [];
+    for(i=0;i<yhats.length;i++)
+    {
+        residuals.push(parseFloat(yhats[i])-parseFloat(DV[i]));
+    }
+    return residuals;
+}
+
+// Residual Sum of Squares sum[(yhat_i-y_i)^2]
+function getRSS(residuals){
+    var RSS = 0;
+    for(i=0;i<residuals.length;i++)
+    {
+        RSS += residuals[i]*residuals[i];
+    }
+    return RSS;
+}
+
+// Total Sum of Squares sum[(yi-ybar)^2]
+function getTSS(DV)
+{
+    var modTSS = 0;
+    var meanDV = getMean(DV);
+    for(i=0;i<DV.length;i++)
+    {
+        var j = parseFloat(DV[i])-meanDV;
+        modTSS += j*j;
+    }
+    return modTSS;
+}
+
+function getRSQD (RSS,TSS)
+{
+    return 1-(RSS/TSS);
+}
+
+function getMSE(RSS,obs,p)
+{
+   return RSS/(obs-p-1);
+}
+
+function getSER(RSS,obs,p)
+{
+    return Math.sqrt(getMSE(RSS,obs,p));
+}
+function getMean(vect){
+          var vectsum = 0;
+          for (i=0;i<vect.length;i++)
+          {
+                vectsum += parseFloat(vect[i]);
+          }
+
+          mean = vectsum / vect.length;
+          return mean;
+};
+
+
+function getVariance(vect, mean){
+          var variance = 0;
+          for (i=0;i<vect.length;i++)
+          {
+                variance += (parseFloat(vect[i])-mean)*(parseFloat(vect[i])-mean);
+          }
+          return variance;
+}
+
+function jregs_medians( this_array )
+{
+    //this_array = this_array.sort(function(a,b){return a - b})
+    return d3.median(this_array);
+}
+
+
+function jregs_standard_devs( variance, n )
+{
+    return Math.sqrt( variance / n );
+}
+
+function printSum(j){
+
+    var vect = [];
+
+    // in case the last value is blank
+    var poptest = window.data.length-1;
+    if(window.data[poptest] == '')
+    {
+        datalength = poptest;
+    }
+    else 
+    {
+        datalength = window.data.length;
+    }
+
+    // hold the column the same, cycle through all row values
+    // push adds to an array
+    for(i=1;i<datalength;i++)
+    {
+        vect.push(window.data[i][j]);
+    }
+
+    vect.mean = getMean(vect);
+    vect.variance = getVariance(vect);
+    vect.stdev = Math.sqrt(vect.variance/vect.length);
+        
+};
+
+function showData(){
+
+    printMatrix(window.data,'showalldata');
+    document.getElementById('showDataLink').innerHTML = '';    
+    var link = document.createElement('a');
+    link.setAttribute('href','javascript:hideData();');
+    link.innerHTML = 'Hide Data';
+    link.className = 'datalinks';
+    link.setAttribute('name','hidealldata');
+    document.getElementById("showDataLink").appendChild(link);
+};
+
+function hideData()
+{
+    document.getElementById('showalldata').innerHTML = '';  
+    createShowDataLink();  
+}
+
+
+function createVector(j)
+{
+   var vect = [];
+
+    // in case the last value is blank
+    // (remember, array starts at [0])
+
+    if(window.data[window.data.length-1] == '')
+    {
+        datalength = window.data.length-1;
+    }
+    else 
+    {
+        datalength = window.data.length;
+    }
+
+    // hold the column the same, cycle through all row values and add to array
+    for(i=0;i<datalength;i++)
+    {
+        // parseFloat converts to numeric
+        vect.push(parseFloat(window.data[i][j]));
+    }
+
+    // if first value is not a number (ie, if it's variable name), delete first value
+    if(isNaN(vect[0])) { vect.shift(); }
+
+    return vect;
+}
+
+
+function createMatrix(a)
+{
+    var thisMatrix = [];
+    
+    // a[0].length is the # of rows we need
+    // NOTE: this assumes that a is multidimensional array
+    for(i=0;i<a[0].length;i++) 
+    {
+        var newRow = [];
+        newRow.push(1); // need this for intercept
+        for(j=0;j<a.length;j++)
+        {
+          newRow.push(a[j][i]);
+        }
+        thisMatrix.push(newRow);
+    }
+    return thisMatrix;
+}
+
+
+function getTranspose()
+{
+    return transpose(createMatrix());
+}
+
+function showTranspose()
+{
+    var thisTranspose = getTranspose();
+    printMatrix(thisTranspose,'showTransposeData');
+}
+
+function showMatrix(){
+    var thisMatrix = createMatrix();
+    printMatrix(thisMatrix,'showMatrixData');
+	createHideResultsLink();
+}
+
+
+function getScalarDot(a,b)
+{
+
+    for(j=0;j<b[0].length;j++)
+    {
+        for(i=0;i<b.length;i++)
+        {
+            b[i][j] = a*b[i][j];
+        }
+    }
+    return b;
+}
+
+function getDotProduct(a,b)
+{
+        var newMatrix = [];
+        var arows,acols,brows,bcols;
+        if(typeof b[0] === 'number')
+        {
+            brows = b.length;
+            bcols = 1;
+        }
+        else 
+        {
+            brows = b.length;
+            bcols = b[0].length;
+        }
+        if(typeof a === 'number')
+        {
+            arows = 1;
+            acols = 1;
+        }
+        else 
+        {
+            if(typeof a[0] === 'number')
+            {
+                arows = 1;
+                acols = a.length;
+            }
+            arows = a.length;
+            acols = a[0].length;
+        }
+        
+       for (an=0;an<arows;an++)
+        {
+            var newRow = [];
+            for(bk=0;bk<bcols;bk++)
+            {
+                var nsum = 0;
+                for(bn=0;bn<brows;bn++)
+                {
+                    if(bcols == 1)
+                    {
+                        if(arows == 1)
+                        {
+                            if(acols == 1) // if a is a scalar
+                            {
+                                nsum = parseFloat(a)*parseFloat(b[bn]) + parseFloat(nsum);
+                            }
+                            else // if a vector
+                            {
+                                nsum = parseFloat(a[bn])*parseFloat(b[bn]) + parseFloat(nsum);
+                            }
+                        }
+                        else
+                        {
+                            // alert(parseFloat(a[an][bn]) + ' : ' + parseFloat(b[bn]));
+                            nsum = parseFloat(a[an][bn])*parseFloat(b[bn]) + parseFloat(nsum);
+                        }
+                    }
+                    else
+                    {
+                        if(arows == 1)
+                        {
+                            if(acols == 1) // if 'a' is a scalar
+                            {
+                                nsum = parseFloat(a)*parseFloat(b[bn][bk]) + parseFloat(nsum);
+                            }
+                            else // if 'a' vector
+                            {
+                                nsum = parseFloat(a[bn])*parseFloat(b[bn][bk]) + parseFloat(nsum);
+                            }
+                        }
+                        else
+                        {
+                            nsum = parseFloat(a[an][bn])*parseFloat(b[bn][bk]) + parseFloat(nsum);
+                        }    
+                    }
+                }
+                newRow.push(nsum);
+            }
+            newMatrix.push(newRow);
+         }
+         return newMatrix;
+}
+
+function getSSTx (Xi)
+{   
+    xbar = getMean(Xi)
+    xvar = 0;
+    for(i=0;i<Xi.length;i++)
+    {
+        xvar += (Xi[i]-xbar)*(Xi[i]-xbar);
+    }
+    return xvar;
+}
+
+
+function getMultipliedMatrix(a,b)
+{
+    var newMatrix = [];
+    
+    // if a cols equals b rows 
+    //(ie, for nxk and kxn, k's must be equal, though n need not be)
+        brows = b.length;
+        if(typeof a[0] === 'number')
+        {
+            acols = a.length;
+        }
+        else 
+        {
+            acols = a[0].length;
+        }
+
+    if(acols == brows)
+    {
+        newMatrix = getDotProduct(a,b);
+    }
+
+    newTranspose = getTranspose();
+    newMatrix = inv(newMatrix);
+    newMatrix2 = getDotProduct(newMatrix,newTranspose);
+
+    var y = createVector(1);
+    coefs = getDotProduct(newMatrix2,y);
+    printMatrix(coefs,'showMultiplyMatrixData');
+}
+
+
+//
+//  NUMERIC FUNCTIONS
+//
+
+function transpose(x) {
+    
+    var i,j,m = x.length,n = x[0].length, ret=Array(n),A0,A1,Bj;
+    for(j=0;j<n;j++) ret[j] = Array(m);
+    for(i=m-1;i>=1;i-=2) {
+        A1 = x[i];
+        A0 = x[i-1];
+        for(j=n-1;j>=1;--j) {
+            Bj = ret[j]; Bj[i] = A1[j]; Bj[i-1] = A0[j];
+            --j;
+            Bj = ret[j]; Bj[i] = A1[j]; Bj[i-1] = A0[j];
+        }
+        if(j===0) {
+            Bj = ret[0]; Bj[i] = A1[0]; Bj[i-1] = A0[0];
+        }
+    }
+    if(i===0) {
+        A0 = x[0];
+        for(j=n-1;j>=1;--j) {
+            ret[j][0] = A0[j];
+            --j;
+            ret[j][0] = A0[j];
+        }
+        if(j===0) { ret[0][0] = A0[0]; }
+    }
+    return ret;
+}
+
+clone = pointwise(['x[i]'],'ret[i] = x[i];');
+function diag(d) {
+    var i,i1,j,n = d.length, A = Array(n), Ai;
+    for(i=n-1;i>=0;i--) {
+        Ai = Array(n);
+        i1 = i+2;
+        for(j=n-1;j>=i1;j-=2) {
+            Ai[j] = 0;
+            Ai[j-1] = 0;
+        }
+        if(j>i) { Ai[j] = 0; }
+        Ai[i] = d[i];
+        for(j=i-1;j>=1;j-=2) {
+            Ai[j] = 0;
+            Ai[j-1] = 0;
+        }
+        if(j===0) { Ai[0] = 0; }
+        A[i] = Ai;
+    }
+    return A;
+}
+
+function getDiag(A) {
+    var n = Math.min(A.length,A[0].length),i,ret = Array(n);
+    for(i=n-1;i>=1;--i) {
+        ret[i] = A[i][i];
+        --i;
+        ret[i] = A[i][i];
+    }
+    if(i===0) {
+        ret[0] = A[0][0];
+    }
+    return ret;
+}
+
+identity = function identity(n) { return diag(rep([n],1)); }
+function pointwise(params,body,setup) {
+    if(typeof setup === "undefined") { setup = ""; }
+    var fun = [];
+    var k;
+    var avec = /\[i\]$/,p,thevec = '';
+    for(k=0;k<params.length;k++) {
+        if(avec.test(params[k])) {
+            p = params[k].substring(0,params[k].length-3);
+            thevec = p;
+        } else { p = params[k]; }
+        fun.push(p);
+    }
+    fun[params.length] = '_s';
+    fun[params.length+1] = '_k';
+    fun[params.length+2] = (
+            'if(typeof _s === "undefined") _s = dim('+thevec+');\n'+
+            'if(typeof _k === "undefined") _k = 0;\n'+
+            'var _n = _s[_k];\n'+
+            'var i, ret = Array(_n);\n'+
+            'if(_k < _s.length-1) {\n'+
+            '    for(i=_n-1;i>=0;i--) ret[i] = arguments.callee('+params.join(',')+',_s,_k+1);\n'+
+            '    return ret;\n'+
+            '}\n'+
+            setup+'\n'+
+            'for(i=_n-1;i>=3;--i) { \n'+
+            '    '+body+'\n'+
+            '    --i;\n'+
+            '    '+body+'\n'+
+            '    --i;\n'+
+            '    '+body+'\n'+
+            '    --i;\n'+
+            '    '+body+'\n'+
+            '}\n'+
+            'while(i>=0) {\n'+
+            '    '+body+'\n'+
+            '    --i;\n'+
+            '}\n'+
+            'return ret;'
+            );
+    return Function.apply(null,fun);
+}
+
+
+function linspace(a,b,n) {
+    if(typeof n === "undefined") n = Math.round(b-a)+1;
+    var i,ret = Array(n);
+    n--;
+    for(i=n;i>=0;i--) { ret[i] = (i*b+(n-i)*a)/n; }
+    return ret;
+}
+
+function rep(s,v,k) {
+    if(typeof k === "undefined") { k=0; }
+    var n = s[k], ret = Array(n), i;
+    if(k === s.length-1) {
+        for(i=n-2;i>=0;i-=2) { ret[i+1] = v; ret[i] = v; }
+        if(i===-1) { ret[0] = v; }
+        return ret;
+    }
+    for(i=n-1;i>=0;i--) { ret[i] = rep(s,v,k+1); }
+    return ret;
+}
+
+function inv(x) {
+    var s = dim(x), abs = Math.abs;
+    if(s.length !== 2 || s[0] !== s[1]) { throw new Error('numeric: inv() only works on square matrices'); }
+    var n = s[0], ret = identity(n),i,j,k,A = clone(x),Aj,Ai,Ij,Ii,alpha,temp,k0,k1,k2,k3;
+    var P = linspace(0,n-1), Q = rep([n],0);
+    for(j=0;j<n-1;j++) {
+        k=j;
+        for(i=j+1;i<n;i++) { if(abs(A[i][j]) > abs(A[k][j])) { k = i; } }
+        if(k!==j) {
+            temp = A[k]; A[k] = A[j]; A[j] = temp;
+            temp = ret[k]; ret[k] = ret[j]; ret[j] = temp;
+            temp = P[k]; P[k] = P[j]; P[j] = temp;
+        }
+        Aj = A[j];
+        Ij = ret[j];
+        for(i=j+1;i<n;i++) {
+            Ai = A[i];
+            Ii = ret[i];
+            alpha = Ai[j]/Aj[j];
+            if(alpha === 0) continue;
+            for(k=j+1;k<n-1;k+=2) {
+                k1 = k+1;
+                Ai[k] -= Aj[k]*alpha;
+                Ai[k1] -= Aj[k1]*alpha;
+            }
+            if(k<n) { Ai[k] -= Aj[k]*alpha; }
+            for(k=j;k>=1;k-=2) {
+                k2 = P[k-1]; 
+                k3 = P[k];
+                Ii[k2] -= Ij[k2]*alpha;
+                Ii[k3] -= Ij[k3]*alpha;
+            }
+            if(k>=0) { Ii[P[k]] -= Ij[P[k]]*alpha; }
+        }
+    }
+    for(j=n-1;j>0;j--) {
+        Aj = A[j];
+        Ij = ret[j];
+        for(i=0;i<j;i++) {
+            Ii = ret[i];
+            alpha = A[i][j]/Aj[j];
+            if(alpha === 0) continue;
+            for(k=0;k<n-1;k+=2) {
+                k1 = k+1;
+                Ii[k] -= Ij[k]*alpha;
+                Ii[k1] -= Ij[k1]*alpha;
+            }
+            if(k!==n) { Ii[k] -= Ij[k]*alpha; }
+        }
+    }
+    for(i=0;i<n;i++) {
+        alpha = A[i][i];
+        if(alpha === 1) continue;
+        Ii = ret[i];
+        for(j=0;j<n;j++) { Ii[j] /= alpha; }
+    }
+    return ret;
+}
+function _dim(x) {
+    var ret = [];
+    while(typeof x === "object") { ret.push(x.length); x = x[0]; }
+    return ret;
+}
+
+function dim(x) {
+    var y,z;
+    if(typeof x === "object") {
+        y = x[0];
+        if(typeof y === "object") {
+            z = y[0];
+            if(typeof z === "object") {
+                return _dim(x);
+            }
+            return [x.length,y.length];
+        }
+        return [x.length];
+    }
+    return [];
+}
+function det(x) {
+    var s = dim(x);
+    if(s.length !== 2 || s[0] !== s[1]) { throw new Error('numeric: det() only works on square matrices'); }
+    var n = s[0], ret = 1,i,j,k,A = clone(x),Aj,Ai,alpha,temp,k1,k2,k3;
+    for(j=0;j<n-1;j++) {
+        k=j;
+        for(i=j+1;i<n;i++) { if(Math.abs(A[i][j]) > Math.abs(A[k][j])) { k = i; } }
+        if(k !== j) {
+            temp = A[k]; A[k] = A[j]; A[j] = temp;
+            ret *= -1;
+        }
+        Aj = A[j];
+        for(i=j+1;i<n;i++) {
+            Ai = A[i];
+            alpha = Ai[j]/Aj[j];
+            for(k=j+1;k<n-1;k+=2) {
+                k1 = k+1;
+                Ai[k] -= Aj[k]*alpha;
+                Ai[k1] -= Aj[k1]*alpha;
+            }
+            if(k!==n) { Ai[k] -= Aj[k]*alpha; }
+        }
+        if(Aj[j] === 0) { return 0; }
+        ret *= Aj[j];
+    }
+    return ret*A[j][j];
+}
+
+
+
+</script>
+
+</body>
+</html>
